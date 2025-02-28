@@ -138,7 +138,8 @@ struct ActionRow: View {
         text: Binding(
           get: { action.key ?? "" },
           set: { action.key = $0 }
-        ), placeholder: "Key", validationError: validationErrorForKey
+        ), placeholder: "Key", validationError: validationErrorForKey,
+        onKeyChanged: { userConfig.finishEditingKey() }
       )
 
       Picker("Type", selection: $action.type) {
@@ -233,7 +234,8 @@ struct GroupRow: View {
             set: { group.key = $0 }
           ),
           placeholder: "Group Key",
-          validationError: validationErrorForKey
+          validationError: validationErrorForKey,
+          onKeyChanged: { userConfig.finishEditingKey() }
         )
 
         Image(systemName: "chevron.right")
