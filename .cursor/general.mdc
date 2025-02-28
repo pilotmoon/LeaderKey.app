@@ -1,0 +1,6 @@
+---
+description: General
+globs: 
+alwaysApply: true
+---
+Don't suggest to build or run the project. I'll do that in Xcode. Only do it if I suggest it.

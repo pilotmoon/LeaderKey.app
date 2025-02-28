@@ -6,26 +6,51 @@ struct KeyButton: View {
   let placeholder: String
   @State private var isListening = false
   @State private var oldValue = ""
+  var validationError: ValidationErrorType? = nil
+  @EnvironmentObject var userConfig: UserConfig
 
   var body: some View {
     Button(action: {
       oldValue = text  // Store the old value when entering listening mode
       isListening = true
+      // We no longer need to notify UserConfig that we're starting to edit a key
     }) {
       Text(text.isEmpty ? placeholder : text)
         .frame(width: 32, height: 24)
         .background(
           RoundedRectangle(cornerRadius: 5)
-            .fill(isListening ? Color.blue.opacity(0.2) : Color(.controlBackgroundColor))
+            .fill(backgroundColor)
             .overlay(
               RoundedRectangle(cornerRadius: 5)
-                .stroke(isListening ? Color.blue : Color.gray.opacity(0.5), lineWidth: 1)
+                .stroke(borderColor, lineWidth: 1)
             )
         )
         .foregroundColor(text.isEmpty ? .gray : .primary)
     }
     .buttonStyle(PlainButtonStyle())
-    .background(KeyListenerView(isListening: $isListening, text: $text, oldValue: $oldValue))
+    .background(
+      KeyListenerView(
+        isListening: $isListening, text: $text, oldValue: $oldValue, userConfig: userConfig))
+  }
+
+  private var backgroundColor: Color {
+    if isListening {
+      return Color.blue.opacity(0.2)
+    } else if validationError != nil {
+      return Color.red.opacity(0.1)
+    } else {
+      return Color(.controlBackgroundColor)
+    }
+  }
+
+  private var borderColor: Color {
+    if isListening {
+      return Color.blue
+    } else if validationError != nil {
+      return Color.red
+    } else {
+      return Color.gray.opacity(0.5)
+    }
   }
 }
 
@@ -34,12 +59,14 @@ struct KeyListenerView: NSViewRepresentable {
   @Binding var isListening: Bool
   @Binding var text: String
   @Binding var oldValue: String
+  var userConfig: UserConfig
 
   func makeNSView(context: Context) -> NSView {
     let view = KeyListenerNSView()
     view.isListening = $isListening
     view.text = $text
     view.oldValue = $oldValue
+    view.userConfig = userConfig
     return view
   }
 
@@ -48,6 +75,7 @@ struct KeyListenerView: NSViewRepresentable {
       view.isListening = $isListening
       view.text = $text
       view.oldValue = $oldValue
+      view.userConfig = userConfig
 
       // When isListening changes to true, make this view the first responder
       if isListening {
@@ -62,6 +90,7 @@ struct KeyListenerView: NSViewRepresentable {
     var isListening: Binding<Bool>?
     var text: Binding<String>?
     var oldValue: Binding<String>?
+    var userConfig: UserConfig?
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -84,6 +113,8 @@ struct KeyListenerView: NSViewRepresentable {
         }
         DispatchQueue.main.async {
           isListening.wrappedValue = false
+          // Notify UserConfig that we've finished editing a key
+          self.userConfig?.finishEditingKey()
         }
         return
       }
@@ -93,6 +124,8 @@ struct KeyListenerView: NSViewRepresentable {
         text.wrappedValue = ""
         DispatchQueue.main.async {
           isListening.wrappedValue = false
+          // Notify UserConfig that we've finished editing a key
+          self.userConfig?.finishEditingKey()
         }
         return
       }
@@ -103,6 +136,8 @@ struct KeyListenerView: NSViewRepresentable {
         // Set isListening to false after a short delay to ensure the key event is processed
         DispatchQueue.main.async {
           isListening.wrappedValue = false
+          // Notify UserConfig that we've finished editing a key
+          self.userConfig?.finishEditingKey()
         }
       }
     }
@@ -113,6 +148,8 @@ struct KeyListenerView: NSViewRepresentable {
       if let isListening = isListening, isListening.wrappedValue {
         DispatchQueue.main.async {
           isListening.wrappedValue = false
+          // Notify UserConfig that we've finished editing a key
+          self.userConfig?.finishEditingKey()
         }
       }
       return super.resignFirstResponder()
@@ -123,14 +160,19 @@ struct KeyListenerView: NSViewRepresentable {
 #Preview {
   struct Container: View {
     @State var text = "a"
+    @StateObject var userConfig = UserConfig()
 
     var body: some View {
       VStack(spacing: 20) {
         KeyButton(text: $text, placeholder: "Key")
+        KeyButton(text: $text, placeholder: "Key", validationError: .duplicateKey)
+        KeyButton(text: $text, placeholder: "Key", validationError: .emptyKey)
+        KeyButton(text: $text, placeholder: "Key", validationError: .nonSingleCharacterKey)
         Text("Current value: '\(text)'")
       }
       .padding()
       .frame(width: 300)
+      .environmentObject(userConfig)
     }
   }
 
