@@ -11,7 +11,7 @@ struct KeyButton: View {
 
   var body: some View {
     Button(action: {
-      oldValue = text  // Store the old value when entering listening mode
+      oldValue = text
       isListening = true
     }) {
       Text(text.isEmpty ? placeholder : text)
@@ -53,7 +53,6 @@ struct KeyButton: View {
   }
 }
 
-// NSViewRepresentable to listen for key events
 struct KeyListenerView: NSViewRepresentable {
   @Binding var isListening: Bool
   @Binding var text: String
@@ -76,7 +75,6 @@ struct KeyListenerView: NSViewRepresentable {
       view.oldValue = $oldValue
       view.onKeyChanged = onKeyChanged
 
-      // When isListening changes to true, make this view the first responder
       if isListening {
         DispatchQueue.main.async {
           view.window?.makeFirstResponder(view)
@@ -95,8 +93,6 @@ struct KeyListenerView: NSViewRepresentable {
 
     override func viewDidMoveToWindow() {
       super.viewDidMoveToWindow()
-      // Don't automatically become first responder here
-      // We'll do it in updateNSView when isListening becomes true
     }
 
     override func keyDown(with event: NSEvent) {
@@ -117,21 +113,17 @@ struct KeyListenerView: NSViewRepresentable {
           text.wrappedValue = String(characters.first!)
         }
       }
-      
+
       DispatchQueue.main.async {
         isListening.wrappedValue = false
-        // Call the callback when key changes
         self.onKeyChanged?()
       }
     }
 
-    // Add this method to handle when the view loses focus
     override func resignFirstResponder() -> Bool {
-      // If we're still in listening mode when losing focus, exit listening mode
       if let isListening = isListening, isListening.wrappedValue {
         DispatchQueue.main.async {
           isListening.wrappedValue = false
-          // Call the callback when key changes
           self.onKeyChanged?()
         }
       }

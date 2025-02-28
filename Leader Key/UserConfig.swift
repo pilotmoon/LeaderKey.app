@@ -31,16 +31,13 @@ class UserConfig: ObservableObject {
 
   func reloadConfig() {
     Events.send(.willReload)
-    // Instead of calling loadConfig() directly, call a version that doesn't show alerts
-    loadConfigWithoutAlerts()
+    loadConfig(suppressAlerts: true)
     Events.send(.didReload)
   }
 
   func saveConfig() {
-    // Validate the configuration before saving
     validationErrors = ConfigValidator.validate(group: root)
 
-    // If there are validation errors, show an alert but still save
     if !validationErrors.isEmpty {
       let errorCount = validationErrors.count
       alertHandler.showAlert(
@@ -61,7 +58,6 @@ class UserConfig: ObservableObject {
       handleError(error, critical: true)
     }
 
-    // Call reloadConfig which now uses loadConfigWithoutAlerts
     reloadConfig()
   }
 
@@ -97,17 +93,14 @@ class UserConfig: ObservableObject {
 
   // MARK: - File Operations
 
-  /// The path to the config file
   var path: String {
     (Defaults[.configDir] as NSString).appendingPathComponent(fileName)
   }
 
-  /// The URL to the config file
   var url: URL {
     URL(fileURLWithPath: path)
   }
 
-  /// Whether the config file exists
   var exists: Bool {
     fileManager.fileExists(atPath: path)
   }
@@ -143,7 +136,7 @@ class UserConfig: ObservableObject {
 
   // MARK: - Config Loading
 
-  private func loadConfigWithoutAlerts() {
+  private func loadConfig(suppressAlerts: Bool = false) {
     guard exists else {
       root = emptyRoot
       validationErrors = []
@@ -166,43 +159,9 @@ class UserConfig: ObservableObject {
       let decoder = JSONDecoder()
       root = try decoder.decode(Group.self, from: jsonData)
 
-      // Validate the loaded configuration
       validationErrors = ConfigValidator.validate(group: root)
 
-      // No alerts shown in this method
-    } catch {
-      handleError(error, critical: true)
-    }
-  }
-
-  private func loadConfig() {
-    guard exists else {
-      root = emptyRoot
-      validationErrors = []
-      return
-    }
-
-    do {
-      let configString = try readFile()
-
-      guard let jsonData = configString.data(using: .utf8) else {
-        throw NSError(
-          domain: "UserConfig",
-          code: 1,
-          userInfo: [
-            NSLocalizedDescriptionKey: "Failed to encode config file as UTF-8"
-          ]
-        )
-      }
-
-      let decoder = JSONDecoder()
-      root = try decoder.decode(Group.self, from: jsonData)
-
-      // Validate the loaded configuration
-      validationErrors = ConfigValidator.validate(group: root)
-
-      // If there are validation errors, show an alert (unless suppressed)
-      if !validationErrors.isEmpty && !suppressValidationAlerts {
+      if !validationErrors.isEmpty && !suppressAlerts && !suppressValidationAlerts {
         let errorCount = validationErrors.count
         alertHandler.showAlert(
           style: .warning,
@@ -217,14 +176,11 @@ class UserConfig: ObservableObject {
 
   // MARK: - Validation
 
-  // Method to validate without showing alerts
   func validateWithoutAlerts() {
     validationErrors = ConfigValidator.validate(group: root)
   }
 
-  // Method to mark that we've finished editing a key and validate
   func finishEditingKey() {
-    // Validate without showing alerts
     validateWithoutAlerts()
   }
 
