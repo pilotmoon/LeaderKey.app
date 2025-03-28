@@ -141,8 +141,12 @@ class Controller {
 
     switch hit {
     case .action(let action):
-      hide {
-        self.runAction(action)
+      if let mods = modifiers, isInStickyMode(mods) {
+        runAction(action)
+      } else {
+        hide {
+          self.runAction(action)
+        }
       }
     case .group(let group):
       if let mods = modifiers, shouldRunGroupSequenceWithModifiers(mods) {
@@ -157,7 +161,6 @@ class Controller {
       window.notFound()
     }
 
-    // Why do we need to wait here?
     delay(1) {
       self.positionCheatsheetWindow()
     }
@@ -168,17 +171,30 @@ class Controller {
   }
 
   private func shouldRunGroupSequenceWithModifiers(_ modifierFlags: NSEvent.ModifierFlags) -> Bool {
-    let selectedModifier = Defaults[.modifierKeyForGroupSequence]
-    guard let modifierFlag = selectedModifier.flag else {
-      return false
+    let config = Defaults[.modifierKeyConfiguration]
+
+    switch config {
+    case .controlGroupOptionSticky:
+      return modifierFlags.contains(.control)
+    case .optionGroupControlSticky:
+      return modifierFlags.contains(.option)
     }
-    return modifierFlags.contains(modifierFlag)
+  }
+
+  private func isInStickyMode(_ modifierFlags: NSEvent.ModifierFlags) -> Bool {
+    let config = Defaults[.modifierKeyConfiguration]
+
+    switch config {
+    case .controlGroupOptionSticky:
+      return modifierFlags.contains(.option)
+    case .optionGroupControlSticky:
+      return modifierFlags.contains(.control)
+    }
   }
 
   private func charForEvent(_ event: NSEvent) -> String? {
     if Defaults[.forceEnglishKeyboardLayout] {
       if let mapped = englishKeymap[event.keyCode] {
-        // Check if Shift is pressed and convert to uppercase if so
         if event.modifierFlags.contains(.shift) {
           return mapped.uppercased()
         }
@@ -240,6 +256,10 @@ class Controller {
       NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path)
     default:
       print("\(action.type) unknown")
+    }
+
+    if window.isVisible {
+      window.makeKeyAndOrderFront(nil)
     }
   }
 
