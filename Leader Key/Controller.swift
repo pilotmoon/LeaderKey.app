@@ -161,6 +161,7 @@ class Controller {
       window.notFound()
     }
 
+    // Why do we need to wait here?
     delay(1) {
       self.positionCheatsheetWindow()
     }
@@ -195,6 +196,7 @@ class Controller {
   private func charForEvent(_ event: NSEvent) -> String? {
     if Defaults[.forceEnglishKeyboardLayout] {
       if let mapped = englishKeymap[event.keyCode] {
+        // Check if Shift is pressed and convert to uppercase if so
         if event.modifierFlags.contains(.shift) {
           return mapped.uppercased()
         }
