@@ -100,8 +100,10 @@ class AppDelegate: NSObject, NSApplicationDelegate,
 
     KeyboardShortcuts.onKeyUp(for: .activate) {
       if self.controller.window.isKeyWindow {
-        self.hide()
-      } else if self.controller.window.isVisible {
+        // ignore leader key press when waiting for next key
+        return
+      }
+      if self.controller.window.isVisible {
         // should never happen as the window will self-hide when not key
         self.controller.window.makeKeyAndOrderFront(nil)
       } else {
